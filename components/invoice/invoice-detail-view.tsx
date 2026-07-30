@@ -406,7 +406,7 @@ export function InvoiceDetailView({ invoiceId, isPdfMode = false }: { invoiceId:
               />
             )}
             <div>
-              <h2 className="text-lg font-bold text-gray-900 leading-tight uppercase">{invoice.company?.legalName || invoice.company?.displayName || "Bindzo8 CRM"}</h2>
+              <h2 className="text-lg font-bold text-gray-900 leading-tight uppercase">{invoice.company?.legalName || invoice.company?.displayName || "Design Hub CRM"}</h2>
               <div className="text-xs text-gray-900 font-medium leading-normal mt-0.5 space-y-0.5">
                 {invoice.company?.address && <p>{invoice.company.address}</p>}
                 {(invoice.company?.city || invoice.company?.state || invoice.company?.postalCode) && (

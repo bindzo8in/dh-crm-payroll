@@ -21,7 +21,7 @@ import { env } from "@/lib/env"
 const data = {
   user: {
     name: "admin",
-    email: "admin@bindzo8.com",
+    email: "admin@designhubone.com",
     avatar: "/logo.png",
   },
   navMain: [
