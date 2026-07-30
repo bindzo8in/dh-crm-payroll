@@ -29,6 +29,7 @@ export function ManageLeaveDialog({ leave }: { leave: any }) {
   const handleStatusUpdate = (status: LeaveStatus) => {
     mutation.mutate({ id: leave.id, status });
   };
+  console.log(leave)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -46,19 +47,21 @@ export function ManageLeaveDialog({ leave }: { leave: any }) {
         <div className="py-4 space-y-2">
           <p><strong>Employee:</strong> {leave.user?.name || leave.user?.email}</p>
           <p><strong>Type:</strong> {leave.type}</p>
+          <p><strong>Role:</strong> {leave.user?.role}</p>
+          <p><strong>Department:</strong> {leave.user?.department ?? 'Unknown'}</p>
           <p><strong>Reason:</strong> {leave.reason}</p>
         </div>
 
         <DialogFooter className="flex space-x-2">
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             onClick={() => handleStatusUpdate(LeaveStatus.REJECTED)}
             disabled={mutation.isPending || leave.status === LeaveStatus.REJECTED}
           >
             Reject
           </Button>
-          <Button 
-            variant="default" 
+          <Button
+            variant="default"
             onClick={() => handleStatusUpdate(LeaveStatus.APPROVED)}
             disabled={mutation.isPending || leave.status === LeaveStatus.APPROVED}
           >

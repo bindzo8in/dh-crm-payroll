@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { env } from './env'
 import VerificationEmail from '@/email/verification-email'
 import ResetPasswordEmail from '@/email/reset-password';
+import ExistingUserSignupEmail from "@/email/existing-user-signup";
 
 const resend = new Resend(env.RESEND_API_KEY)
 
@@ -110,6 +111,42 @@ export async function sendInvoiceLinkEmail({ email, appName, invoiceUrl, invoice
         if (error) throw error;
     } catch (error) {
         console.error("Failed to send invoice email:", error);
+        throw error;
+    }
+}
+
+export async function sendExistingUserSignupEmail({
+    email,
+    appName,
+    supportEmail,
+    name,
+}: {
+    email: string;
+    appName: string;
+    supportEmail: string;
+    name: string;
+}) {
+    try {
+        const { error } = await resend.emails.send({
+            from: env.MAIL_FROM,
+            to: email,
+            subject: `Your ${appName} account already exists`,
+            react: ExistingUserSignupEmail({
+                name,
+                appName,
+                supportEmail,
+            }),
+            tags: [
+                {
+                    name: "type",
+                    value: "existing-user-signup",
+                },
+            ],
+        });
+
+        if (error) throw error;
+    } catch (error) {
+        console.error("Failed to send existing user signup email:", error);
         throw error;
     }
 }

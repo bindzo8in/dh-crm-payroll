@@ -39,12 +39,13 @@ export function SigninForm({ callbackUrl = '/' }: { callbackUrl: string }) {
 
   const handleSubmit = form.handleSubmit(async (data: SigninSchema) => {
     try {
-      const { error } = await signIn.email({
+      const { data:res, error } = await signIn.email({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
         callbackURL: callbackUrl
       })
+      console.log(res)
       if (error) throw error
       form.reset();
     } catch (error: any) {

@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins/admin"
-import { sendResetPasswordEmail, sendVerificationEmail } from "./email";
+import { sendExistingUserSignupEmail, sendResetPasswordEmail, sendVerificationEmail } from "./email";
 import { env } from "./env";
 import { UserRole } from "@/app/generated/prisma/enums";
 import { ac, adminRole, staffRole, superAdminRole } from './permissions'
@@ -30,6 +30,7 @@ export const auth = betterAuth({
             "exp://",                      // Trust all Expo URLs (prefix matching)
             "exp://**",                    // Trust all Expo URLs (wildcard matching)
             "exp://192.168.*.*:*/**",      // Trust 192.168.x.x IP range with any port and path
+            "http://localhost:3000"
         ] : [])
     ],
     secret: env.BETTER_AUTH_SECRET,
@@ -67,13 +68,22 @@ export const auth = betterAuth({
                 supportEmail: env.NEXT_PUBLIC_SUPPORT_EMAIL,
             })
         },
-        revokeSessionsOnPasswordReset: true
+        revokeSessionsOnPasswordReset: true,
+        onExistingUserSignUp: async ({ user }) => {
+            void sendExistingUserSignupEmail({
+                email: user.email,
+                appName: env.NEXT_PUBLIC_APP_NAME,
+                name: user.name,
+                supportEmail: env.NEXT_PUBLIC_SUPPORT_EMAIL,
+            });
+        },
     },
     emailVerification: {
         sendOnSignUp: true,
         sendOnSignIn: true,
         expiresIn: 24 * 60 * 60, // 24 hours
         sendVerificationEmail: async ({ token, url, user }) => {
+            console.log("email is start sending for " + user.email + " with url: " + url);
             sendVerificationEmail({
                 email: user.email,
                 appName: env.NEXT_PUBLIC_APP_NAME,

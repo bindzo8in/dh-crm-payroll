@@ -6,9 +6,10 @@ import { headers } from "next/headers";
 import { UserRole, LeaveType, LeaveStatus } from "@/app/generated/prisma/enums";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { eachDayOfInterval, format, isSunday } from "date-fns";
 
 const leaveRequestSchema = z.object({
-  type: z.nativeEnum(LeaveType),
+  type: z.enum(LeaveType),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   reason: z.string().min(1, "Reason is required").max(500),
@@ -24,9 +25,52 @@ export async function submitLeaveRequestAction(input: any) {
 
   const parsed = leaveRequestSchema.parse(input);
 
+
   if (parsed.endDate < parsed.startDate) {
     throw new Error("End date cannot be before start date");
   }
+  const start = parsed.startDate;
+  const end = parsed.endDate;
+
+  // 1. Generate every calendar day in the interval
+  const allDays = eachDayOfInterval({ start: parsed.startDate, end: parsed.endDate });
+
+  // 2. Fetch all database holidays that fall within this leave range
+  const databaseHolidays = await prisma.holiday.findMany({
+    where: {
+      date: {
+        gte: start,
+        lte: end,
+      }
+    },
+    select: { date: true }
+  })
+
+  // Convert DB date intervals into standard comparable format strings
+  const holidayStrings = new Set(
+    databaseHolidays.map((h) => format(h.date, 'yyyy-MM-dd'))
+  );
+
+  // 3. Initialize metrics counters
+  let totalSundays = 0;
+  let totalHolidays = 0;
+  let totalNormalLeaveDays = 0; // Net payable leave days
+
+  // 4. Categorize each day in a single loop execution
+  allDays.forEach((day) => {
+    const formattedStr = format(day, 'yyyy-MM-dd');
+    const isDaySunday = isSunday(day);
+    const isDayHoliday = holidayStrings.has(formattedStr);
+
+    if (isDaySunday) {
+      totalSundays++;
+    } else if (isDayHoliday) {
+      // Note: If a public holiday falls on a Sunday, it is counted as a Sunday above.
+      totalHolidays++;
+    } else {
+      totalNormalLeaveDays++;
+    }
+  });
 
   const leave = await prisma.leaveRequest.create({
     data: {
@@ -36,11 +80,20 @@ export async function submitLeaveRequestAction(input: any) {
       endDate: parsed.endDate,
       reason: parsed.reason,
       status: LeaveStatus.PENDING,
+
+      // Map your loop metrics here:
+      totalDays: allDays.length,
+      netLeaveDays: totalNormalLeaveDays,
+      sundayCount: totalSundays,
+      holidayCount: totalHolidays,
     },
   });
 
+
   revalidatePath("/dashboard/leaves");
-  return { success: true, leave };
+  return {
+    success: true, leave
+  };
 }
 
 export async function getMyLeaveRequestsAction() {
@@ -70,7 +123,7 @@ export async function getAllLeaveRequestsAction(page: number = 0, limit: number 
   const leaves = await prisma.leaveRequest.findMany({
     include: {
       user: {
-        select: { id: true, name: true, email: true, department: true }
+        select: { id: true, name: true, email: true, department: true, role: true }
       }
     },
     orderBy: { createdAt: "desc" },
@@ -93,7 +146,7 @@ export async function updateLeaveStatusAction(id: string, status: LeaveStatus, m
 
   const leave = await prisma.leaveRequest.update({
     where: { id },
-    data: { 
+    data: {
       status,
       managerComment: managerComment || null
     },

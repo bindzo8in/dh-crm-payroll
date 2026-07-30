@@ -2,7 +2,7 @@ import { getAllLeaveRequestsAction, getMyLeaveRequestsAction } from "@/actions/l
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { UserRole } from "@/app/generated/prisma/enums";
-import { format } from "date-fns";
+import { differenceInDays, format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,10 +22,11 @@ export default async function LeavesPage() {
   if (!session) return null;
 
   const isAdmin = session.user.role === UserRole.SUPER_ADMIN || session.user.role === UserRole.ADMIN;
-  
+
   let leaves: any[] = [];
   if (isAdmin) {
     const res = await getAllLeaveRequestsAction();
+    console.log(res)
     if (res.success) leaves = res.leaves;
   } else {
     const res = await getMyLeaveRequestsAction();
@@ -56,6 +57,7 @@ export default async function LeavesPage() {
                   <TableHead>Type</TableHead>
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
+                  <TableHead>Total Days</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead className="text-right">Actions</TableHead>}
@@ -72,12 +74,51 @@ export default async function LeavesPage() {
                     <TableCell><Badge variant="outline">{leave.type}</Badge></TableCell>
                     <TableCell>{format(new Date(leave.startDate), "MMM d, yyyy")}</TableCell>
                     <TableCell>{format(new Date(leave.endDate), "MMM d, yyyy")}</TableCell>
+                    <TableCell>
+<div className="space-y-2 min-w-[180px]">
+  <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+    <span className="text-sm font-medium text-muted-foreground">
+      Sunday
+    </span>
+    <span className="rounded-md bg-background px-2 py-0.5 text-sm font-semibold">
+      {leave.sundayCount}
+    </span>
+  </div>
+
+  <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+    <span className="text-sm font-medium text-muted-foreground">
+      Holiday
+    </span>
+    <span className="rounded-md bg-background px-2 py-0.5 text-sm font-semibold">
+      {leave.holidayCount}
+    </span>
+  </div>
+
+  <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+    <span className="text-sm font-medium text-muted-foreground">
+      Net Leave
+    </span>
+    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-sm font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+      {leave.netLeaveDays}
+    </span>
+  </div>
+
+  <div className="flex items-center justify-between rounded-lg border bg-primary/5 px-3 py-2">
+    <span className="text-sm font-semibold">
+      Total
+    </span>
+    <span className="rounded-md bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground">
+      {leave.totalDays}
+    </span>
+  </div>
+</div>
+                    </TableCell>
                     <TableCell className="max-w-[200px] truncate">{leave.reason}</TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={
-                          leave.status === 'APPROVED' ? 'default' : 
-                          leave.status === 'REJECTED' ? 'destructive' : 'secondary'
+                          leave.status === 'APPROVED' ? 'default' :
+                            leave.status === 'REJECTED' ? 'destructive' : 'secondary'
                         }
                       >
                         {leave.status}

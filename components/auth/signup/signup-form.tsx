@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Password } from "@/components/password"
 import { Checkbox } from "@/components/ui/checkbox"
-import { signUp, signIn } from '@/lib/auth-client'
+import { signUp, signIn, sendVerificationEmail } from '@/lib/auth-client'
 import { useState } from 'react'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import Link from "next/link"
@@ -38,11 +38,32 @@ export function SignupForm() {
       setError(null);
       setMessage(null);
 
-      const result = await signUp.email({
+      const { data: signUpData, error } = await signUp.email({
         email: data.email,
         password: data.password,
         name: data.name,
+        callbackURL: window.location.origin
       });
+      if (signUpData?.user?.emailVerified === false) {
+        const createdAtTime = new Date(signUpData?.user.createdAt).getTime();
+        const currentTime = Date.now();
+
+        const isExistingUser = (currentTime - createdAtTime) > 10000;
+        console.log(currentTime - createdAtTime)
+        if (isExistingUser) {
+          console.log("Existing unverified account detected. Manually triggering email...");
+          const { error: verifyError } = await sendVerificationEmail({ email: data.email })
+          if (verifyError) {
+            console.error("Failed to trigger verification email:", verifyError.message);
+          } else {
+            console.log("Verification email sent successfully to existing user!");
+          }
+        }
+
+      } else {
+        console.log("New user registered. The backend automatically sent the email.");
+      }
+
 
       setMessage(
         `If this email is not already registered, an account has been created. Please check your inbox for verification.`
@@ -63,11 +84,11 @@ export function SignupForm() {
         provider,
         callbackURL: "/"
       })
-    } catch (error) { 
+    } catch (error) {
       setMessage(`an error occured while signing in with ${provider}, try again!`)
-    } 
+    }
   }
- 
+
   return (
     <>
       {message && (
@@ -183,7 +204,7 @@ export function SignupForm() {
             {socialMediaButtons.map((o) => (
               <Button key={o.label} variant="outline" type="button"
                 className="text-sm gap-2 px-2 h-10 grow "
-                onClick={() => {continueWith({provider: o.provider })}}
+                onClick={() => { continueWith({ provider: o.provider }) }}
               >
                 <div className="place-items-center grid rounded-full bg-white size-6 p-0.5">
                   <img src={o.src} width={16} height={16} />

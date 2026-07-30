@@ -967,6 +967,13 @@ model LeaveRequest {
   reason        String
   status        LeaveStatus @default(PENDING)
   managerComment String?
+  
+  // New breakdown calculation tracking fields
+  totalDays     Int         @default(0) // Total calendar block size
+  netLeaveDays  Int         @default(0) // Actual chargeable work days
+  sundayCount   Int         @default(0) // Total Sundays skipped
+  holidayCount  Int         @default(0) // Total Public Holidays skipped
+
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -974,6 +981,7 @@ model LeaveRequest {
   @@index([status])
   @@map("leave_request")
 }
+
 
 model Holiday {
   id          String   @id @default(cuid())

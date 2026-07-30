@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "leave_request" ADD COLUMN     "holidayCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "netLeaveDays" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sundayCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "totalDays" INTEGER NOT NULL DEFAULT 0;
