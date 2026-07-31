@@ -55,9 +55,9 @@ function calculateDistanceMeters(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c);
 }
@@ -103,9 +103,9 @@ export async function getAttendanceSettings() {
 /**
  * Checks for orphaned open sessions and auto-closes them if open longer than maxShiftHoursCap.
  */
-async function processOrphanedSessions(userId: string) {
+async function processOrphanedSessions(userId: string, settingsInput?: any) {
   try {
-    const settings = await getAttendanceSettings();
+    const settings = settingsInput || await getAttendanceSettings();
     const maxHours = settings?.maxShiftHoursCap || 16;
     const cutoffDate = new Date(Date.now() - maxHours * 60 * 60 * 1000);
 
@@ -152,8 +152,9 @@ export async function clockInAction(input: ClockInInput) {
     const { session, reqHeaders } = await getAuthenticatedUser();
     const validated = clockInSchema.parse(input);
 
-    // Run auto-checkout check for open orphaned sessions
-    await processOrphanedSessions(session.user.id);
+    // Run auto-checkout check for open orphaned sessions concurrently with settings fetch
+    const settings = await getAttendanceSettings();
+    processOrphanedSessions(session.user.id, settings).catch(e => console.error(e));
 
     const today = getTodayDateOnly();
 
@@ -191,7 +192,6 @@ export async function clockInAction(input: ClockInInput) {
 
     const deviceInfo = `${deviceType.toUpperCase()}${osName ? ` (${osName}${browserName ? ` / ${browserName}` : ""})` : ""}`;
 
-    const settings = await getAttendanceSettings();
     const now = new Date();
 
     // Validate Office Location & Distance if workMode is OFFICE
@@ -427,7 +427,7 @@ export async function startBreakAction(input: StartBreakInput) {
       return { success: false, error: "You are already on break." };
     }
 
-    const newBreak = await prisma.attendanceBreak.create({
+    await prisma.attendanceBreak.create({
       data: {
         attendanceRecordId: activeRecord.id,
         breakStart: new Date(),
@@ -435,7 +435,19 @@ export async function startBreakAction(input: StartBreakInput) {
       },
     });
 
-    return { success: true, break: JSON.parse(JSON.stringify(newBreak)) };
+    const updatedRecord = await prisma.attendanceRecord.findUnique({
+      where: {
+        id: activeRecord.id,
+      },
+      include: {
+        breaks: true,
+      },
+    });
+
+    return {
+      success: true,
+      record: updatedRecord,
+    };
   } catch (error: any) {
     console.error("Error in startBreakAction:", error);
     return { success: false, error: error.message || "Failed to start break" };
@@ -490,7 +502,25 @@ export async function endBreakAction(input: EndBreakInput) {
       },
     });
 
-    return { success: true };
+    // 👇 Fetch the latest record
+    const updatedRecord = await prisma.attendanceRecord.findUnique({
+      where: {
+        id: activeRecord.id,
+      },
+      include: {
+        breaks: {
+          orderBy: {
+            breakStart: "desc",
+          }
+        }
+      },
+    });
+
+    // 👇 Return it
+    return {
+      success: true,
+      record: updatedRecord,
+    };
   } catch (error: any) {
     console.error("Error in endBreakAction:", error);
     return { success: false, error: error.message || "Failed to end break" };
@@ -504,8 +534,8 @@ export async function getTodayAttendanceAction() {
       return { success: false, record: null, settings: null, userRole: "STAFF", error: "Unauthorized" };
     }
 
-    // Auto-checkout orphaned sessions first
-    await processOrphanedSessions(session.user.id);
+    // Auto-checkout orphaned sessions first (run asynchronously so it doesn't block loading the screen)
+    processOrphanedSessions(session.user.id).catch(e => console.error("Error running deferred orphaned session check", e));
 
     const today = getTodayDateOnly();
 
