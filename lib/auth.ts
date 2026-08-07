@@ -60,7 +60,8 @@ export const auth = betterAuth({
         autoSignIn: false,
         requireEmailVerification: true,
         resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
-        sendResetPassword: async ({ url, user }) => {
+        sendResetPassword: async ({ url, user, token }) => {
+            console.log("reset email is start sending for " + user.email + " with token " + token + " and url " + url);
             sendResetPasswordEmail({
                 email: user.email,
                 appName: env.NEXT_PUBLIC_APP_NAME,

@@ -185,6 +185,7 @@ export function useMenuNavigation<T>({
 
   useEffect(() => {
     if (query) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedIndex(autoSelectFirstItem ? 0 : -1)
     }
   }, [query, autoSelectFirstItem])

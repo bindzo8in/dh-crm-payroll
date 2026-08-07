@@ -36,6 +36,7 @@ export function ForgotPasswordForm() {
       email: data.email,
       redirectTo: `${window.location.origin}/reset-password`,
     });
+    console.log(error, res)
 
     if (error) {
       if (error.status === 429) {
