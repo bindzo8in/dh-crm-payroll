@@ -2,7 +2,7 @@ import { z } from "zod";
 import { WorkMode, AttendanceStatus, Department } from "@/app/generated/prisma/enums";
 
 export const clockInSchema = z.object({
-  workMode: z.nativeEnum(WorkMode),
+  workMode: z.enum(WorkMode),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   locationName: z.string().nullable().optional(),
@@ -34,8 +34,8 @@ export type EndBreakInput = z.infer<typeof endBreakSchema>;
 export const attendanceFilterSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  status: z.nativeEnum(AttendanceStatus).optional(),
-  department: z.nativeEnum(Department).optional(),
+  status: z.enum(AttendanceStatus).optional(),
+  department: z.enum(Department).optional(),
   userId: z.string().optional(),
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().default(20),
@@ -71,8 +71,34 @@ export const editAttendanceSchema = z.object({
   attendanceRecordId: z.string().min(1, "Record ID is required"),
   clockIn: z.string().min(1, "Clock In time is required"),
   clockOut: z.string().optional().nullable(),
-  status: z.nativeEnum(AttendanceStatus).optional(),
+  status: z.enum(AttendanceStatus).optional(),
   reason: z.string().min(5, "Please provide a valid reason (min 5 chars)"),
 });
 
 export type EditAttendanceInput = z.infer<typeof editAttendanceSchema>;
+
+export const advancedAttendanceReportSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  department: z.enum(Department).optional(),
+  userId: z.string().optional(),
+  status: z.enum(AttendanceStatus).optional(),
+  workMode: z.enum(WorkMode).optional(),
+  onlyLate: z.boolean().optional(),
+  minLateMinutes: z.number().int().min(0).optional(),
+  onlyEarlyLeave: z.boolean().optional(),
+  onlyOvertime: z.boolean().optional(),
+  minWorkMinutes: z.number().int().min(0).optional(),
+  maxWorkMinutes: z.number().int().min(0).optional(),
+  onlyExcessiveBreaks: z.boolean().optional(),
+  minBreakMinutes: z.number().int().min(0).optional(),
+  onlyAutoCheckedOut: z.boolean().optional(),
+  onlyRegularized: z.boolean().optional(),
+  onlyManuallyEdited: z.boolean().optional(),
+  geofenceFilter: z.enum(["ALL", "IN_OFFICE", "OUTSIDE_OR_REMOTE"]).optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().default(25),
+});
+
+export type AdvancedAttendanceReportInput = z.infer<typeof advancedAttendanceReportSchema>;
+

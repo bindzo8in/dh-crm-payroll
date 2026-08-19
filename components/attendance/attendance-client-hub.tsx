@@ -1,28 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { PunchClockView } from "./punch-clock-view";
 import { AttendanceTable } from "./attendance-table";
 import { AttendanceAnalytics } from "./attendance-analytics";
+import { AttendanceReportView } from "./attendance-report-view";
 import { MobileAttendanceNav, AttendanceTab } from "./mobile-attendance-nav";
 import { AttendanceSettingsDialog } from "./attendance-settings-dialog";
 import { Button } from "@/components/ui/button";
-import { ClockIcon, HistoryIcon, BarChart3Icon, Settings2Icon } from "lucide-react";
+import { ClockIcon, HistoryIcon, BarChart3Icon, FileSpreadsheetIcon, Settings2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WorkMode } from "@/app/generated/prisma/enums";
 
 interface AttendanceClientHubProps {
   initialRecord: any;
   settings: any;
   userRole: string;
   userDepartment: string;
+  workMode: WorkMode;
 }
 
-export function AttendanceClientHub({ initialRecord, settings, userRole, userDepartment }: AttendanceClientHubProps) {
+export function AttendanceClientHub({ initialRecord, settings, userRole, userDepartment, workMode }: AttendanceClientHubProps) {
   const [activeTab, setActiveTab] = useState<AttendanceTab>("kiosk");
   const [record, setRecord] = useState(initialRecord);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN";
+  const isManager = isAdmin || userDepartment === "HR";
 
   const handleRefresh = async () => {
     window.location.reload();
@@ -73,8 +77,24 @@ export function AttendanceClientHub({ initialRecord, settings, userRole, userDep
             )}
           >
             <BarChart3Icon className="w-4 h-4 text-primary" />
-            Analytics & Reports
+            Analytics Overview
           </button>
+
+          {isManager && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("reports")}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all",
+                activeTab === "reports"
+                  ? "bg-background text-foreground shadow-md text-emerald-600 dark:text-emerald-400"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FileSpreadsheetIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              Detailed Reports & Export
+            </button>
+          )}
         </div>
 
         {/* Admin Shift Rules Settings Button */}
@@ -97,6 +117,7 @@ export function AttendanceClientHub({ initialRecord, settings, userRole, userDep
             initialRecord={record}
             settings={settings}
             onRefresh={handleRefresh}
+            workMode={workMode}
           />
         )}
 
@@ -107,10 +128,14 @@ export function AttendanceClientHub({ initialRecord, settings, userRole, userDep
         {activeTab === "analytics" && (
           <AttendanceAnalytics />
         )}
+
+        {activeTab === "reports" && isManager && (
+          <AttendanceReportView userRole={userRole} userDepartment={userDepartment} />
+        )}
       </div>
 
       {/* Mobile Bottom Sticky Navigation */}
-      <MobileAttendanceNav activeTab={activeTab} onSelectTab={(tab) => setActiveTab(tab)} />
+      <MobileAttendanceNav activeTab={activeTab} onSelectTab={(tab) => setActiveTab(tab)} isManager={isManager} />
 
       {/* Admin Settings Dialog */}
       {isAdmin && (

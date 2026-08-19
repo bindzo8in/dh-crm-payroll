@@ -45,7 +45,6 @@ export function SigninForm({ callbackUrl = '/' }: { callbackUrl: string }) {
         rememberMe: data.rememberMe,
         callbackURL: callbackUrl
       })
-      console.log(res)
       if (error) throw error
       form.reset();
     } catch (error: any) {

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { getAttendanceAuditLogsAction } from "@/actions/attendance";
+import { formatDateTimeInIST } from "@/lib/date";
 import { HistoryIcon, ShieldCheckIcon, AlertCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,12 +64,7 @@ export function AttendanceAuditViewer({ isOpen, onClose, recordId }: AttendanceA
                     {log.action}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">
-                    {new Date(log.createdAt).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatDateTimeInIST(new Date(log.createdAt))}
                   </span>
                 </div>
 

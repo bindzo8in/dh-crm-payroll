@@ -6,7 +6,7 @@ import Link from "next/link";
 import { CommandIcon, LayoutDashboardIcon, UserIcon, AlertCircleIcon, ShieldAlertIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
-import { UserRole } from "@/app/generated/prisma/enums";
+import { UserRole, WorkMode } from "@/app/generated/prisma/enums";
 
 export const metadata: Metadata = {
   title: "Attendance Kiosk & Portal | CRM",
@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 
 export default async function AttendancePage() {
   const { user, isAuthorized, hasDepartment } = await requireAttendanceAccess();
-
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans">
@@ -108,6 +107,7 @@ export default async function AttendancePage() {
           settings={settings}
           userRole={userRole}
           userDepartment={user.department || ""}
+          workMode={user.workMode as WorkMode || WorkMode.OFFICE}
         />
       </main>
     </div>

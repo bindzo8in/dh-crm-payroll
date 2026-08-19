@@ -58,6 +58,7 @@ model User {
   salarySlips        SalarySlip[]
 
   // Payroll Details
+  employeeId         Int                @default(autoincrement()) @unique
   employeeNo         String?
   designation        String?
   bankName           String?

@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AttendanceStatus, Department } from "@/app/generated/prisma/enums";
-import { getAttendanceLogsAction } from "@/actions/attendance";
+import { getAttendanceLogsAction, exportAttendanceToExcelAction } from "@/actions/attendance";
 import { RegularizationModal } from "./regularization-modal";
 import { AttendanceAuditViewer } from "./attendance-audit-viewer";
+import { formatTimeInIST, formatDateTimeInIST } from "@/lib/date";
 import {
   LaptopIcon,
   Building2Icon,
@@ -22,6 +23,7 @@ import {
   FilterIcon,
   FileEditIcon,
   HistoryIcon,
+  FileSpreadsheetIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,6 +36,7 @@ export function AttendanceTable({ userRole, userDepartment }: AttendanceTablePro
   const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userDepartment === "HR";
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -64,6 +67,60 @@ export function AttendanceTable({ userRole, userDepartment }: AttendanceTablePro
       toast.error(err.message || "Failed to fetch attendance logs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!isAdmin) return;
+    setIsExporting(true);
+    try {
+      toast.loading("Exporting attendance logs to Excel...", { id: "table-export" });
+      const res = await exportAttendanceToExcelAction({
+        status: statusFilter !== "ALL" ? (statusFilter as AttendanceStatus) : undefined,
+        department: departmentFilter !== "ALL" ? (departmentFilter as Department) : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+
+      if (res.success && res.base64 && res.filename) {
+        const byteCharacters = window.atob(res.base64);
+        const sliceSize = 1024;
+        const byteArrays = [];
+
+        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+          const slice = byteCharacters.slice(offset, offset + sliceSize);
+          const byteNumbers = new Array(slice.length);
+          for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+          }
+          byteArrays.push(new Uint8Array(byteNumbers));
+        }
+
+        const blob = new Blob(byteArrays, {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = res.filename;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }, 200);
+
+        toast.success(`Exported ${res.totalExported} records to Excel!`, { id: "table-export" });
+      } else {
+        toast.error(res.error || "Failed to export records", { id: "table-export" });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error exporting records", { id: "table-export" });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -120,6 +177,7 @@ export function AttendanceTable({ userRole, userDepartment }: AttendanceTablePro
       }
     }
 
+    if (diff < 0) diff = 0;
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
@@ -184,6 +242,19 @@ export function AttendanceTable({ userRole, userDepartment }: AttendanceTablePro
               className="w-full sm:w-36 rounded-xl text-xs"
               placeholder="To Date"
             />
+
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting || loading || totalCount === 0}
+                className="rounded-xl text-xs font-semibold text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 shadow-sm"
+              >
+                <FileSpreadsheetIcon className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                {isExporting ? "Exporting..." : "Excel"}
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -246,11 +317,11 @@ export function AttendanceTable({ userRole, userDepartment }: AttendanceTablePro
                     })}
                   </TableCell>
                   <TableCell className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    {new Date(record.clockIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                    {formatTimeInIST(new Date(record.clockIn))}
                   </TableCell>
                   <TableCell className="text-xs font-semibold text-rose-600 dark:text-rose-400">
                     {record.clockOut
-                      ? new Date(record.clockOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                      ? formatTimeInIST(new Date(record.clockOut))
                       : "--:--"}
                   </TableCell>
                   <TableCell className="text-xs font-medium">
@@ -351,14 +422,14 @@ export function AttendanceTable({ userRole, userDepartment }: AttendanceTablePro
                 <div>
                   <span className="text-muted-foreground text-[10px]">Clock In</span>
                   <div className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    {new Date(record.clockIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                    {formatTimeInIST(new Date(record.clockIn))}
                   </div>
                 </div>
                 <div>
                   <span className="text-muted-foreground text-[10px]">Clock Out</span>
                   <div className="font-semibold text-rose-600 dark:text-rose-400">
                     {record.clockOut
-                      ? new Date(record.clockOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                      ? formatTimeInIST(new Date(record.clockOut))
                       : "In Progress"}
                   </div>
                 </div>

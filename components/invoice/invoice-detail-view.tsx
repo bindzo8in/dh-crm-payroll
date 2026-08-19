@@ -62,7 +62,6 @@ export function InvoiceDetailView({ invoiceId, isPdfMode = false }: { invoiceId:
   });
 
   const invoice = data?.success ? data.data : null;
-  console.log(invoice)
 
   const paymentMutation = useMutation({
     mutationFn: () =>

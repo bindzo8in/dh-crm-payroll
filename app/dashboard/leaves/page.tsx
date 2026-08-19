@@ -26,7 +26,6 @@ export default async function LeavesPage() {
   let leaves: any[] = [];
   if (isAdmin) {
     const res = await getAllLeaveRequestsAction();
-    console.log(res)
     if (res.success) leaves = res.leaves;
   } else {
     const res = await getMyLeaveRequestsAction();

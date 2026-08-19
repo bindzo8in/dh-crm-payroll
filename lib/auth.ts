@@ -5,7 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins/admin"
 import { sendExistingUserSignupEmail, sendResetPasswordEmail, sendVerificationEmail } from "./email";
 import { env } from "./env";
-import { UserRole } from "@/app/generated/prisma/enums";
+import { UserRole, WorkMode } from "@/app/generated/prisma/enums";
 import { ac, adminRole, staffRole, superAdminRole } from './permissions'
 import { expo } from "@better-auth/expo";
 
@@ -30,7 +30,8 @@ export const auth = betterAuth({
             "exp://",                      // Trust all Expo URLs (prefix matching)
             "exp://**",                    // Trust all Expo URLs (wildcard matching)
             "exp://192.168.*.*:*/**",      // Trust 192.168.x.x IP range with any port and path
-            "http://localhost:3000"
+            "http://localhost:3000",
+            "https://275vkjpg-3000.inc1.devtunnels.ms/"
         ] : [])
     ],
     secret: env.BETTER_AUTH_SECRET,
@@ -43,6 +44,11 @@ export const auth = betterAuth({
                 type: "string",
                 required: false,
             },
+            workMode: {
+                type: "string",
+                required: false,
+                default: WorkMode.OFFICE,
+            }
         },
     },
     session: {
@@ -53,6 +59,11 @@ export const auth = betterAuth({
                 type: "string",
                 required: false,
             },
+            workMode: {
+                type: "string",
+                required: false,
+                default: WorkMode.OFFICE,
+            }
         }
     },
     emailAndPassword: {

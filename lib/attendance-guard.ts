@@ -1,20 +1,12 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/prisma";
+// import prisma from "@/lib/prisma";
 import { UserRole, Department } from "@/app/generated/prisma/enums";
-
+type Session = typeof auth.$Infer.Session
 export interface AttendanceUserPermissions {
-  session: any;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    image: string | null;
-    role: UserRole;
-    department: Department | null;
-    createdAt: Date;
-  };
+  session: Session;
+  user: Session["user"];
   isAuthorized: boolean;
   hasDepartment: boolean;
 }
@@ -33,30 +25,41 @@ export async function requireAttendanceAccess(): Promise<AttendanceUserPermissio
     redirect("/signin");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-      role: true,
-      department: true,
-      createdAt: true,
-    },
-  });
 
-  if (!user) {
-    redirect("/signin");
-  }
+//   const user = await prisma.user.findUnique({
+//     where: { id: session.user.id },
+//     select: {
+//       id: true,
+//       name: true,
+//       email: true,
+//       image: true,
+//       role: true,
+//       department: true,
+//       createdAt: true,
+//       workMode: true,
+//     },
+//   });
+//   if (!user) {
+//     redirect("/signin");
+//   }
 
-  const isAdminOrSuperAdmin = user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN;
-  const isAuthorized = isAdminOrSuperAdmin || !!(user.role && user.department);
+  const isAdminOrSuperAdmin = session.user.role === UserRole.SUPER_ADMIN || session.user.role === UserRole.ADMIN;
+  const isAuthorized = isAdminOrSuperAdmin || !!(session.user.role && session.user.department);
 
   return {
     session,
-    user,
+    user: session.user,
     isAuthorized,
-    hasDepartment: !!user.department,
+    hasDepartment: !!session.user.department,
   };
 }
+
+export function isAttendanceManager(user: { role?: UserRole | string | null; department?: Department | string | null }): boolean {
+  if (!user) return false;
+  const role = user.role ? String(user.role).toUpperCase() : "";
+  const dept = user.department ? String(user.department).toUpperCase() : "";
+  if (role === "SUPER_ADMIN" || role === "ADMIN") return true;
+  if (role === "STAFF" && dept === "HR") return true;
+  return false;
+}
+

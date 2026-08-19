@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileEditIcon, RefreshCwIcon, CheckCircle2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { utcToDateTimeLocal, dateTimeLocalToUTC } from "@/lib/date";
 
 interface RegularizationModalProps {
   isOpen: boolean;
@@ -19,10 +20,10 @@ interface RegularizationModalProps {
 
 export function RegularizationModal({ isOpen, onClose, record, onSuccess }: RegularizationModalProps) {
   const [clockIn, setClockIn] = useState<string>(
-    record?.clockIn ? new Date(record.clockIn).toISOString().slice(0, 16) : ""
+    record?.clockIn ? utcToDateTimeLocal(new Date(record.clockIn)) : ""
   );
   const [clockOut, setClockOut] = useState<string>(
-    record?.clockOut ? new Date(record.clockOut).toISOString().slice(0, 16) : ""
+    record?.clockOut ? utcToDateTimeLocal(new Date(record.clockOut)) : ""
   );
   const [status, setStatus] = useState<string>(record?.status || "PRESENT");
   const [reason, setReason] = useState<string>("");
@@ -37,13 +38,17 @@ export function RegularizationModal({ isOpen, onClose, record, onSuccess }: Regu
 
     setLoading(true);
     try {
+      // Convert IST datetime-local values to UTC for storage
+      const clockInUTC = dateTimeLocalToUTC(clockIn).toISOString();
+      const clockOutUTC = clockOut ? dateTimeLocalToUTC(clockOut).toISOString() : undefined;
+
       const response = await fetch("/api/attendance/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attendanceRecordId: record.id,
-          clockIn,
-          clockOut: clockOut || undefined,
+          clockIn: clockInUTC,
+          clockOut: clockOutUTC,
           status,
           reason,
         }),
@@ -74,7 +79,7 @@ export function RegularizationModal({ isOpen, onClose, record, onSuccess }: Regu
             <FileEditIcon className="w-5 h-5 text-primary" /> Regularization Request
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Correct missing or inaccurate check-in/out timestamps with a mandatory reason for audit.
+            Correct missing or inaccurate check-in/out timestamps (IST timezone) with a mandatory reason for audit.
           </DialogDescription>
         </DialogHeader>
 

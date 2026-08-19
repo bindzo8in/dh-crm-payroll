@@ -24,7 +24,6 @@ interface CoverRendererProps {
 
 export function CoverRenderer({ block, proposal, company }: CoverRendererProps) {
   const content = (block.content as CoverBlockContent) || {};
-  console.log(proposal)
   const {
     subtitle = "Smart Solutions. Strategic Thinking. Measurable Results.",
     preparedFor = proposal.customerCompanyName || proposal.customerDisplayName || "Client",

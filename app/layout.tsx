@@ -19,6 +19,9 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
+  appleWebApp: {
+    title: "DH CRM",
+  },
 };
 
 export default function RootLayout({

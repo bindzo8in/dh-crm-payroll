@@ -1,22 +1,26 @@
 "use client";
 
 import React from "react";
-import { ClockIcon, HistoryIcon, BarChart3Icon, UserIcon } from "lucide-react";
+import { ClockIcon, HistoryIcon, BarChart3Icon, UserIcon, FileSpreadsheetIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-export type AttendanceTab = "kiosk" | "history" | "analytics";
+export type AttendanceTab = "kiosk" | "history" | "analytics" | "reports";
 
 interface MobileAttendanceNavProps {
   activeTab: AttendanceTab;
   onSelectTab: (tab: AttendanceTab) => void;
+  isManager?: boolean;
 }
 
-export function MobileAttendanceNav({ activeTab, onSelectTab }: MobileAttendanceNavProps) {
+export function MobileAttendanceNav({ activeTab, onSelectTab, isManager }: MobileAttendanceNavProps) {
   const tabs = [
     { id: "kiosk" as AttendanceTab, label: "Punch Clock", icon: ClockIcon },
     { id: "history" as AttendanceTab, label: "History", icon: HistoryIcon },
     { id: "analytics" as AttendanceTab, label: "Analytics", icon: BarChart3Icon },
+    ...(isManager
+      ? [{ id: "reports" as AttendanceTab, label: "Reports", icon: FileSpreadsheetIcon }]
+      : []),
   ];
 
   return (

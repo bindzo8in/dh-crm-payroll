@@ -29,7 +29,6 @@ export function ManageLeaveDialog({ leave }: { leave: any }) {
   const handleStatusUpdate = (status: LeaveStatus) => {
     mutation.mutate({ id: leave.id, status });
   };
-  console.log(leave)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

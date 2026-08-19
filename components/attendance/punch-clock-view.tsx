@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { WorkMode, AttendanceStatus } from "@/app/generated/prisma/enums";
+import { WorkMode } from "@/app/generated/prisma/enums";
 import { SelfieCameraModal } from "./selfie-camera-modal";
 import {
   clockInAction,
@@ -29,18 +29,25 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { format, parse } from "date-fns";
 
+type SelfieData = {
+  url: string;
+  publicId: string;
+};
 interface PunchClockViewProps {
   initialRecord: any;
   settings: any;
   onRefresh: () => void;
+  workMode: WorkMode;
 }
 
-export function PunchClockView({ initialRecord, settings, onRefresh }: PunchClockViewProps) {
-  const [time, setTime] = useState<Date | null>(null);
-  const [selectedWorkMode, setSelectedWorkMode] = useState<WorkMode>(
-    initialRecord?.workMode || WorkMode.OFFICE
-  );
+export function PunchClockView({ initialRecord, settings, onRefresh, workMode }: PunchClockViewProps) {
+  // const [time, setTime] = useState<Date | null>(null);
+  // const [selectedWorkMode, setSelectedWorkMode] = useState<WorkMode>(
+  //   initialRecord?.workMode || WorkMode.OFFICE
+  // );
+  const actionLock = useRef(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [selfie, setSelfie] = useState<{ url: string; publicId: string } | null>(
     initialRecord?.selfieUrl
@@ -54,14 +61,14 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Live Digital Clock
-  useEffect(() => {
-    setTime(new Date());
-    const timer = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // // Live Digital Clock
+  // useEffect(() => {
+  //   setTime(new Date());
+  //   const timer = setInterval(() => {
+  //     setTime(new Date());
+  //   }, 1000);
+  //   return () => clearInterval(timer);
+  // }, []);
 
   // Request browser geolocation on mount if not available
   useEffect(() => {
@@ -79,54 +86,66 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
     }
   }, [coords.lat]);
 
-  const [debounced, setDebounced] = useState(false);
-
   const activeRecord = initialRecord;
   const isClockedIn = !!activeRecord && !activeRecord.clockOut;
   const openBreak = activeRecord?.breaks?.find((b: any) => !b.breakEnd);
   const isOnBreak = !!openBreak;
 
-  const handleClockIn = async () => {
-    if (debounced || loading) return;
-    if (!selfie?.url) {
-      setIsCameraOpen(true);
-      toast.info("Please capture a live selfie to complete clock-in.");
+  const acquireActionLock = () => {
+  if (actionLock.current) return false;
+
+  actionLock.current = true;
+  return true;
+};
+
+const releaseActionLock = () => {
+  actionLock.current = false;
+};
+
+
+
+const handleClockIn = async (capturedSelfie?: SelfieData) => {
+  if (loading || !acquireActionLock()) return;
+
+  const selfieToUse = capturedSelfie ?? selfie;
+
+  if (!selfieToUse?.url) {
+    releaseActionLock();
+    setIsCameraOpen(true);
+    toast.info("Please capture a live selfie to complete clock-in.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await clockInAction({
+      workMode,
+      latitude: coords.lat,
+      longitude: coords.lng,
+      selfieUrl: selfieToUse.url,
+      selfiePublicId: selfieToUse.publicId,
+      notes: notes || undefined,
+    });
+
+    if (!res.success) {
+      toast.error(res.error || "Failed to clock in");
       return;
     }
 
-    setLoading(true);
-    setDebounced(true);
-    setTimeout(() => setDebounced(false), 3000);
-
-    try {
-      const res = await clockInAction({
-        workMode: selectedWorkMode,
-        latitude: coords.lat,
-        longitude: coords.lng,
-        selfieUrl: selfie.url,
-        selfiePublicId: selfie.publicId,
-        notes: notes || undefined,
-      });
-
-      if (!res.success) {
-        toast.error(res.error || "Failed to clock in");
-        return;
-      }
-
-      toast.success("Clocked in successfully!");
-      onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to clock in");
-    } finally {
-      setLoading(false);
-    }
-  };
+    toast.success("Clocked in successfully!");
+    onRefresh();
+  } catch (err: any) {
+    toast.error(err.message || "Failed to clock in");
+  } finally {
+    setLoading(false);
+    releaseActionLock();
+  }
+};
 
   const handleClockOut = async () => {
-    if (debounced || loading) return;
+    if (loading) return;
     setLoading(true);
-    setDebounced(true);
-    setTimeout(() => setDebounced(false), 3000);
 
     try {
       const res = await clockOutAction({
@@ -148,10 +167,8 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
   };
 
   const handleToggleBreak = async () => {
-    if (debounced || loading) return;
+    if (loading) return;
     setLoading(true);
-    setDebounced(true);
-    setTimeout(() => setDebounced(false), 3000);
     try {
       if (isOnBreak) {
         const res = await endBreakAction({ breakId: openBreak.id });
@@ -177,23 +194,26 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
   };
 
   // Formatted date string
-  const formattedDate = time
-    ? time.toLocaleDateString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "";
+  const formattedDate =
+    new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-  const formattedTime = time
-    ? time.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      })
-    : "00:00:00 AM";
+    const railwayTo12 = (time24: string) => {
+      return format(parse(time24, "HH:mm", new Date()), 'h:mm a');
+    };
+
+  // const formattedTime = time
+  //   ? time.toLocaleTimeString("en-US", {
+  //       hour: "2-digit",
+  //       minute: "2-digit",
+  //       second: "2-digit",
+  //       hour12: true,
+  //     })
+  //   : "00:00:00 AM";
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-24 md:pb-6">
@@ -205,9 +225,9 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-semibold">
               <SparklesIcon className="w-3.5 h-3.5" /> Attendance Kiosk Mode
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
+            {/* <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
               {formattedTime}
-            </h1>
+            </h1> */}
             <p className="text-muted-foreground text-sm font-medium">{formattedDate}</p>
           </div>
 
@@ -247,7 +267,7 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Expected Shift: <span className="font-semibold text-foreground">{settings?.expectedClockIn || "09:00"}</span> - <span className="font-semibold text-foreground">{settings?.expectedClockOut || "18:00"}</span>
+              Expected Shift: <span className="font-semibold text-foreground">{railwayTo12(settings?.expectedClockIn || "09:00")}</span> - <span className="font-semibold text-foreground">{railwayTo12(settings?.expectedClockOut || "18:00")}</span>
             </p>
           </div>
         </CardContent>
@@ -273,7 +293,7 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
               <button
                 type="button"
                 disabled={loading || (isClockedIn && isOnBreak)}
-                onClick={isClockedIn ? handleClockOut : handleClockIn}
+                onClick={isClockedIn ? handleClockOut : () => setIsCameraOpen(true)}
                 className={cn(
                   "w-48 h-48 rounded-full flex flex-col items-center justify-center text-white font-bold transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50",
                   isClockedIn
@@ -338,27 +358,44 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
               <CardDescription className="text-xs">Select your working location</CardDescription>
             </CardHeader>
             <CardContent className="p-0 grid grid-cols-3 gap-2">
-              {[
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-semibold transition-all border-primary bg-primary/10 text-primary shadow-sm"
+                )}
+
+              >
+                {workMode === WorkMode.OFFICE && (
+                  <Building2Icon className="w-5 h-5 mb-1.5" />
+                )}
+                {workMode === WorkMode.REMOTE && (
+                  <HomeIcon className="w-5 h-5 mb-1.5" />
+                )}
+                {workMode === WorkMode.HYBRID && (
+                  <LaptopIcon className="w-5 h-5 mb-1.5" />
+                )}
+                <span>{workMode === WorkMode.OFFICE ? "Office" : workMode === WorkMode.REMOTE ? "Remote" : "Hybrid"}</span>
+              </div>
+              {/* {[
                 { mode: WorkMode.OFFICE, label: "Office", icon: Building2Icon },
                 { mode: WorkMode.REMOTE, label: "Remote", icon: HomeIcon },
                 { mode: WorkMode.HYBRID, label: "Hybrid", icon: LaptopIcon },
               ].map(({ mode, label, icon: Icon }) => (
-                <button
+                <div
                   key={mode}
-                  type="button"
-                  disabled={isClockedIn}
-                  onClick={() => setSelectedWorkMode(mode)}
+                  // type="div"
+                  // disabled={isClockedIn}
+                  // onClick={() => setSelectedWorkMode(mode)}
                   className={cn(
                     "flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-semibold transition-all",
-                    selectedWorkMode === mode
+                    workMode === mode
                       ? "border-primary bg-primary/10 text-primary shadow-sm"
                       : "border-border/60 hover:bg-muted/50 text-muted-foreground"
                   )}
                 >
                   <Icon className="w-5 h-5 mb-1.5" />
                   {label}
-                </button>
-              ))}
+                </div>
+              ))} */}
             </CardContent>
           </Card>
 
@@ -387,7 +424,7 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
               </div>
 
               <div className="flex-1 space-y-2">
-                {!isClockedIn && (
+                {/* {!isClockedIn && (
                   <Button
                     type="button"
                     variant="outline"
@@ -398,9 +435,9 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
                     <CameraIcon className="w-3.5 h-3.5 mr-1.5" />
                     {selfie?.url ? "Retake Selfie" : "Take Live Selfie"}
                   </Button>
-                )}
+                )} */}
                 <p className="text-[11px] text-muted-foreground">
-                  {selfie?.url ? "Photo ready for attendance log." : "Live photo required before clocking in."}
+                  {selfie?.url ? "Photo recorded for attendance log." : "Live photo required for clocking in."}
                 </p>
               </div>
             </CardContent>
@@ -423,7 +460,7 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
             </div>
 
             {/* Office Distance Indicator if WorkMode is OFFICE */}
-            {selectedWorkMode === WorkMode.OFFICE && (
+            {workMode === WorkMode.OFFICE && (
               <div className="pt-2 border-t border-border/40 text-xs flex items-center justify-between">
                 <span className="text-muted-foreground font-medium">Office Proximity:</span>
                 {coords.lat && coords.lng && settings?.officeLatitude != null && settings?.officeLongitude != null ? (() => {
@@ -433,9 +470,9 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
                   const a =
                     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                     Math.cos((coords.lat! * Math.PI) / 180) *
-                      Math.cos((settings.officeLatitude * Math.PI) / 180) *
-                      Math.sin(dLon / 2) *
-                      Math.sin(dLon / 2);
+                    Math.cos((settings.officeLatitude * Math.PI) / 180) *
+                    Math.sin(dLon / 2) *
+                    Math.sin(dLon / 2);
                   const dist = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
                   const maxRadius = settings.officeRadiusMeters ?? 500;
                   const isInRange = dist <= maxRadius;
@@ -477,6 +514,7 @@ export function PunchClockView({ initialRecord, settings, onRefresh }: PunchCloc
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
         onCapture={(data) => setSelfie(data)}
+        handleClockIn={handleClockIn}
       />
     </div>
   );

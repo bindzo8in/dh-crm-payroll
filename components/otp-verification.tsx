@@ -24,7 +24,6 @@ const { formState: { isSubmitting, isSubmitSuccessful } } = form;
 const handleSubmit = form.handleSubmit(async (data: Schema) => {
   try {
     // TODO: implement form submission
-    console.log(data);
     form.reset();
   } catch (error) {
     // TODO: handle error

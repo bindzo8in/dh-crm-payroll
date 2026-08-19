@@ -92,8 +92,24 @@ export default async function AttendanceProfilePage() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto space-y-6 pb-16">
-        <AttendanceProfileOverviewCard user={user} />
-        <AttendanceProfileForm user={user} />
+        <AttendanceProfileOverviewCard user={{
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image ?? null,
+          role: user.role ?? "",
+          department: user.department ?? null,
+          createdAt: user.createdAt,
+        }} />
+        <AttendanceProfileForm user={{
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image ?? null,
+          role: user.role ?? "",
+          department: user.department ?? null,
+          createdAt: user.createdAt,
+        }} />
         <AttendancePasswordForm />
       </main>
     </div>

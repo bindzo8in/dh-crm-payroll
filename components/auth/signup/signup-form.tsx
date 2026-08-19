@@ -49,7 +49,6 @@ export function SignupForm() {
         const currentTime = Date.now();
 
         const isExistingUser = (currentTime - createdAtTime) > 10000;
-        console.log(currentTime - createdAtTime)
         if (isExistingUser) {
           console.log("Existing unverified account detected. Manually triggering email...");
           const { error: verifyError } = await sendVerificationEmail({ email: data.email })

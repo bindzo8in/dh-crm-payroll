@@ -48,6 +48,7 @@ export async function getUsers({
     where: { id: { in: userIds } },
     select: { 
       id: true, 
+      employeeId: true,
       department: true, 
       workMode: true,
       employeeNo: true,
@@ -65,11 +66,13 @@ export async function getUsers({
 
   const usersWithExtra = authUsers.users.map((u) => {
     const pUser = prismaUserMap.get(u.id);
+    const resolvedEmployeeNo = pUser?.employeeNo || (pUser?.employeeId ? `DH-${String(pUser.employeeId).padStart(3, "0")}` : null);
     return {
       ...u,
+      employeeId: pUser?.employeeId || null,
       department: pUser?.department || null,
       workMode: pUser?.workMode || WorkMode.OFFICE,
-      employeeNo: pUser?.employeeNo || null,
+      employeeNo: resolvedEmployeeNo,
       designation: pUser?.designation || null,
       bankName: pUser?.bankName || null,
       bankAccountNo: pUser?.bankAccountNo || null,
