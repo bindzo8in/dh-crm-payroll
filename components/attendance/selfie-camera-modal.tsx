@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { env } from "@/lib/env";
 
 import {
   useCallback,
@@ -341,49 +342,52 @@ export function SelfieCameraModal({
     async (
       blob: Blob
     ): Promise<SelfieData> => {
-      /*
-       * Replace this with your Cloudinary endpoint.
-       *
-       * Example:
-       *
-       * const formData = new FormData();
-       * formData.append(
-       *   "file",
-       *   blob,
-       *   "attendance-selfie.jpg"
-       * );
-       *
-       * const response = await fetch(
-       *   "/api/upload/selfie",
-       *   {
-       *     method: "POST",
-       *     body: formData,
-       *   }
-       * );
-       *
-       * if (!response.ok) {
-       *   throw new Error(
-       *     "Selfie upload failed"
-       *   );
-       * }
-       *
-       * const data = await response.json();
-       *
-       * return {
-       *   url: data.url,
-       *   publicId: data.publicId,
-       * };
-       */
+      const cloudinaryUrl =
+        `https://api.cloudinary.com/v1_1/${env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
+      const formData = new FormData();
 
-      /*
-       * Temporary local implementation.
-       */
-      const url =
-        URL.createObjectURL(blob);
+      formData.append(
+        "file",
+        blob,
+        "attendance-selfie.jpg"
+      );
+      formData.append(
+        "upload_preset",
+        env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+      );
+
+      const response = await fetch(
+        cloudinaryUrl,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Selfie upload failed with status: ${response.status}`
+        );
+      }
+
+      const data: unknown = await response.json();
+
+      if (
+        typeof data !== "object" ||
+        data === null ||
+        !("secure_url" in data) ||
+        typeof data.secure_url !== "string" ||
+        !("public_id" in data) ||
+        typeof data.public_id !== "string"
+      ) {
+        throw new Error(
+          "Cloudinary returned an invalid upload response"
+        );
+      }
 
       return {
-        url,
-        publicId: "",
+        url: data.secure_url,
+        publicId: data.public_id,
       };
     },
     []

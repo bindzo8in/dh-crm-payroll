@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ngrok": "ngrok http 3000 --url https://rented-commodity-uncoated.ngrok-free.dev"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

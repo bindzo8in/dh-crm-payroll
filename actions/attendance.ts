@@ -576,8 +576,8 @@ export async function getTodayAttendanceAction() {
       return { success: false, record: null, settings: null, userRole: "STAFF", error: "Unauthorized" };
     }
 
-    // Auto-checkout orphaned sessions first (run asynchronously so it doesn't block loading the screen)
-    processOrphanedSessions(session.user.id).catch(e => console.error("Error running deferred orphaned session check", e));
+    // Auto-checkout orphaned sessions before querying today's record
+    await processOrphanedSessions(session.user.id);
 
     const today = getTodayDateOnly();
 
@@ -626,6 +626,10 @@ export async function getAttendanceLogsAction(input: Partial<AttendanceFilterInp
 
     const isManager = isAttendanceManager(session.user);
     const targetUserId = isManager ? parsed.userId : session.user.id;
+
+    if (targetUserId) {
+      await processOrphanedSessions(targetUserId);
+    }
 
     const whereClause: any = {};
 

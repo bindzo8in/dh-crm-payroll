@@ -31,7 +31,8 @@ export const auth = betterAuth({
             "exp://**",                    // Trust all Expo URLs (wildcard matching)
             "exp://192.168.*.*:*/**",      // Trust 192.168.x.x IP range with any port and path
             "http://localhost:3000",
-            "https://275vkjpg-3000.inc1.devtunnels.ms/"
+            "https://rented-commodity-uncoated.ngrok-free.dev",
+            "mobile://",                     // Trust all mobile URLs (prefix matching)
         ] : [])
     ],
     secret: env.BETTER_AUTH_SECRET,
