@@ -1,8 +1,9 @@
 "use server";
 
-import { UserRole, WorkMode, AttendanceStatus, Department } from "@/app/generated/prisma/enums";
+import { UserRole, WorkMode, Department } from "@/app/generated/prisma/enums";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { env } from "@/lib/env";
 import { userAgent } from "next/server";
 import {
   clockInSchema,
@@ -310,8 +311,8 @@ export async function clockInAction(input: ClockInInput) {
         longitude: validated.longitude ?? null,
         distanceFromOffice,
         locationName: validated.locationName ?? null,
-        selfieUrl: validated.selfieUrl ?? null,
-        selfiePublicId: validated.selfiePublicId ?? null,
+        // selfieUrl: validated.selfieUrl ?? null,
+        // selfiePublicId: validated.selfiePublicId ?? null,
         notes: validated.notes ?? null,
         lateMinutes,
       },
@@ -666,7 +667,7 @@ export async function getAttendanceLogsAction(input: Partial<AttendanceFilterInp
               email: true,
               image: true,
               department: true,
-              employeeNo: true,
+              employeeId: true,
               designation: true,
             },
           },
@@ -748,7 +749,6 @@ export async function getAttendanceAnalyticsAction(filters: {
             name: true,
             email: true,
             department: true,
-            employeeNo: true,
             image: true,
           },
         },
@@ -795,7 +795,7 @@ export async function getAttendanceAnalyticsAction(filters: {
     const employeeAgg: Record<string, {
       name: string;
       email: string;
-      employeeNo: string;
+      employeeId: string;
       image?: string | null;
       department: string;
       shifts: number;
@@ -874,7 +874,7 @@ export async function getAttendanceAnalyticsAction(filters: {
         employeeAgg[uId] = {
           name: rec.user?.name || "Unknown",
           email: rec.user?.email || "",
-          employeeNo: rec.user?.employeeNo || (rec.user?.employeeId ? `DH-${String(rec.user.employeeId).padStart(3, "0")}` : "N/A"),
+          employeeId: rec.user?.employeeId ? `${env.NEXT_PUBLIC_EMP_PREFIX}${String(rec.user.employeeId).padStart(3, "0")}` : "N/A",
           image: rec.user?.image,
           department: deptName,
           shifts: 0,
@@ -1271,7 +1271,6 @@ export async function getAttendanceEmployeesListAction() {
         name: true,
         email: true,
         department: true,
-        employeeNo: true,
         designation: true,
         workMode: true,
       },
@@ -1280,7 +1279,7 @@ export async function getAttendanceEmployeesListAction() {
 
     const formattedUsers = users.map((u) => ({
       ...u,
-      employeeNo: u.employeeNo || (u.employeeId ? `DH-${String(u.employeeId).padStart(3, "0")}` : null),
+      employeeId: u.employeeId ? `${env.NEXT_PUBLIC_EMP_PREFIX}${String(u.employeeId).padStart(3, "0")}` : null,
     }));
 
     return { success: true, users: JSON.parse(JSON.stringify(formattedUsers)) };
@@ -1320,7 +1319,6 @@ export async function getDetailedAttendanceReportAction(input: Partial<AdvancedA
               email: true,
               image: true,
               department: true,
-              employeeNo: true,
               designation: true,
             },
           },
@@ -1472,7 +1470,6 @@ export async function exportAttendanceToExcelAction(input: Partial<AdvancedAtten
             name: true,
             email: true,
             department: true,
-            employeeNo: true,
             designation: true,
           },
         },
@@ -1488,7 +1485,7 @@ export async function exportAttendanceToExcelAction(input: Partial<AdvancedAtten
     }
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = "DH CRM Attendance Engine";
+    workbook.creator = `${env.NEXT_PUBLIC_APP_NAME} Attendance Engine`;
     workbook.created = new Date();
 
     // ==========================================
@@ -1587,7 +1584,7 @@ export async function exportAttendanceToExcelAction(input: Partial<AdvancedAtten
       const netHoursStr = rec.workMinutes > 0 ? `${Math.floor(rec.workMinutes / 60)}h ${rec.workMinutes % 60}m` : "-";
       const grossHoursStr = grossMins > 0 ? `${Math.floor(grossMins / 60)}h ${grossMins % 60}m` : "-";
       const dateFormatted = rec.date ? formatInIST(new Date(rec.date), "dd/MM/yyyy") : "-";
-      const resolvedEmpNo = rec.user?.employeeNo || (rec.user?.employeeId ? `DH-${String(rec.user.employeeId).padStart(3, "0")}` : "N/A");
+      const resolvedEmpNo = rec.user?.employeeId ? `${env.NEXT_PUBLIC_EMP_PREFIX}${String(rec.user.employeeId).padStart(3, "0")}` : "N/A";
 
       totalWorkMinsSum += rec.workMinutes || 0;
       totalBreakMinsSum += rec.breakMinutes || 0;
@@ -1748,7 +1745,7 @@ export async function exportAttendanceToExcelAction(input: Partial<AdvancedAtten
     // Group records by employee
     const employeeMap = new Map<string, {
       id: string;
-      employeeNo: string;
+      employeeId: string;
       name: string;
       email: string;
       department: string;
@@ -1763,10 +1760,10 @@ export async function exportAttendanceToExcelAction(input: Partial<AdvancedAtten
     records.forEach((rec) => {
       const uId = rec.userId;
       if (!employeeMap.has(uId)) {
-        const empNo = rec.user?.employeeNo || (rec.user?.employeeId ? `DH-${String(rec.user.employeeId).padStart(3, "0")}` : "N/A");
+        const empNo = rec.user?.employeeId ? `${env.NEXT_PUBLIC_EMP_PREFIX}${String(rec.user.employeeId).padStart(3, "0")}` : "N/A";
         employeeMap.set(uId, {
           id: uId,
-          employeeNo: empNo,
+          employeeId: empNo,
           name: rec.user?.name || "Unknown",
           email: rec.user?.email || "Unknown",
           department: rec.department || rec.user?.department || "N/A",
@@ -1795,7 +1792,7 @@ export async function exportAttendanceToExcelAction(input: Partial<AdvancedAtten
 
       const row = sheet2.addRow([
         idx + 1,
-        emp.employeeNo,
+        emp.employeeId,
         emp.name,
         emp.email,
         emp.department,

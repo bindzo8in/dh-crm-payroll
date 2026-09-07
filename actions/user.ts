@@ -3,6 +3,7 @@
 import { UserRole, Department, WorkMode } from "@/app/generated/prisma/enums";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { env } from "@/lib/env";
 import { headers } from "next/headers";
 
 export async function getUsers({
@@ -51,7 +52,7 @@ export async function getUsers({
       employeeId: true,
       department: true, 
       workMode: true,
-      employeeNo: true,
+
       designation: true,
       bankName: true,
       bankAccountNo: true,
@@ -66,7 +67,7 @@ export async function getUsers({
 
   const usersWithExtra = authUsers.users.map((u) => {
     const pUser = prismaUserMap.get(u.id);
-    const resolvedEmployeeNo = pUser?.employeeNo || (pUser?.employeeId ? `DH-${String(pUser.employeeId).padStart(3, "0")}` : null);
+    const resolvedEmployeeNo = pUser?.employeeId ? `${env.NEXT_PUBLIC_EMP_PREFIX}${String(pUser.employeeId).padStart(3, "0")}` : null;
     return {
       ...u,
       employeeId: pUser?.employeeId || null,

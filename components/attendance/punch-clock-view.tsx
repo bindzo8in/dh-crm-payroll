@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WorkMode } from "@/app/generated/prisma/enums";
-import { SelfieCameraModal } from "./selfie-camera-modal";
+// import { SelfieCameraModal } from "./selfie-camera-modal";
 import {
   clockInAction,
   clockOutAction,
@@ -31,10 +31,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format, parse } from "date-fns";
 
-type SelfieData = {
-  url: string;
-  publicId: string;
-};
+// type SelfieData = {
+//   url: string;
+//   publicId: string;
+// };
 interface PunchClockViewProps {
   initialRecord: any;
   settings: any;
@@ -48,16 +48,18 @@ export function PunchClockView({ initialRecord, settings, onRefresh, workMode }:
   //   initialRecord?.workMode || WorkMode.OFFICE
   // );
   const actionLock = useRef(false);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [selfie, setSelfie] = useState<{ url: string; publicId: string } | null>(
-    initialRecord?.selfieUrl
-      ? { url: initialRecord.selfieUrl, publicId: initialRecord.selfiePublicId || "" }
-      : null
-  );
+  // const [isCameraOpen, setIsCameraOpen] = useState(false);
+  // const [selfie, setSelfie] = useState<{ url: string; publicId: string } | null>(
+  //   initialRecord?.selfieUrl
+  //     ? { url: initialRecord.selfieUrl, publicId: initialRecord.selfiePublicId || "" }
+  //     : null
+  // );
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({
     lat: initialRecord?.latitude || null,
     lng: initialRecord?.longitude || null,
   });
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -70,19 +72,45 @@ export function PunchClockView({ initialRecord, settings, onRefresh, workMode }:
   //   return () => clearInterval(timer);
   // }, []);
 
-  // Request browser geolocation on mount if not available
-  useEffect(() => {
-    if (typeof window !== "undefined" && "geolocation" in navigator && !coords.lat) {
+  const fetchLocation = () => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      setIsLocating(true);
+      setLocationError(null);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setCoords({
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           });
+          setIsLocating(false);
         },
-        (err) => console.log("Geolocation notice:", err.message),
-        { enableHighAccuracy: true, timeout: 10000 }
+        (err) => {
+          console.log("Geolocation error:", err.message);
+          let errorMessage = "Unable to get location.";
+          if (err.code === err.PERMISSION_DENIED) {
+            errorMessage = "Location access denied. Please enable it in browser settings.";
+            toast.error("Location permission denied. Please enable it in your browser/device settings and try again.");
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            errorMessage = "Location information is unavailable.";
+            toast.error("Location unavailable. Make sure your device GPS is turned on.");
+          } else if (err.code === err.TIMEOUT) {
+            errorMessage = "Location request timed out.";
+            toast.error("Location request timed out. Please try again.");
+          }
+          setLocationError(errorMessage);
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
+    } else {
+      setLocationError("Geolocation is not supported by this browser.");
+    }
+  };
+
+  // Request browser geolocation on mount if not available
+  useEffect(() => {
+    if (!coords.lat && !locationError && !isLocating) {
+      fetchLocation();
     }
   }, [coords.lat]);
 
@@ -104,17 +132,17 @@ const releaseActionLock = () => {
 
 
 
-const handleClockIn = async (capturedSelfie?: SelfieData) => {
+const handleClockIn = async () => {
   if (loading || !acquireActionLock()) return;
 
-  const selfieToUse = capturedSelfie ?? selfie;
+  // const selfieToUse = capturedSelfie ?? selfie;
 
-  if (!selfieToUse?.url) {
-    releaseActionLock();
-    setIsCameraOpen(true);
-    toast.info("Please capture a live selfie to complete clock-in.");
-    return;
-  }
+  // if (!selfieToUse?.url) {
+  //   releaseActionLock();
+  //   setIsCameraOpen(true);
+  //   toast.info("Please capture a live selfie to complete clock-in.");
+  //   return;
+  // }
 
   setLoading(true);
 
@@ -123,8 +151,8 @@ const handleClockIn = async (capturedSelfie?: SelfieData) => {
       workMode,
       latitude: coords.lat,
       longitude: coords.lng,
-      selfieUrl: selfieToUse.url,
-      selfiePublicId: selfieToUse.publicId,
+      // selfieUrl: selfieToUse.url,
+      // selfiePublicId: selfieToUse.publicId,
       notes: notes || undefined,
     });
 
@@ -293,7 +321,7 @@ const handleClockIn = async (capturedSelfie?: SelfieData) => {
               <button
                 type="button"
                 disabled={loading || (isClockedIn && isOnBreak)}
-                onClick={isClockedIn ? handleClockOut : () => setIsCameraOpen(true)}
+                onClick={isClockedIn ? handleClockOut : handleClockIn}
                 className={cn(
                   "w-48 h-48 rounded-full flex flex-col items-center justify-center text-white font-bold transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50",
                   isClockedIn
@@ -399,60 +427,31 @@ const handleClockIn = async (capturedSelfie?: SelfieData) => {
             </CardContent>
           </Card>
 
-          {/* Selfie Snapshot Viewfinder Card */}
-          <Card className="border border-border/60 bg-card shadow-lg rounded-3xl p-6">
-            <CardHeader className="p-0 mb-4 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <CameraIcon className="w-5 h-5 text-primary" /> Selfie Verification
-                </CardTitle>
-                <CardDescription className="text-xs">Direct Cloudinary capture</CardDescription>
-              </div>
-              {selfie?.url && (
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px]">
-                  Verified
-                </Badge>
-              )}
-            </CardHeader>
-            <CardContent className="p-0 flex items-center gap-4">
-              <div className="relative w-20 h-20 bg-muted rounded-2xl overflow-hidden border border-border flex items-center justify-center flex-shrink-0">
-                {selfie?.url ? (
-                  <img src={selfie.url} alt="Selfie Verification" className="w-full h-full object-cover" />
-                ) : (
-                  <CameraIcon className="w-8 h-8 text-muted-foreground/50" />
-                )}
-              </div>
-
-              <div className="flex-1 space-y-2">
-                {/* {!isClockedIn && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsCameraOpen(true)}
-                    className="w-full rounded-xl text-xs font-medium"
-                  >
-                    <CameraIcon className="w-3.5 h-3.5 mr-1.5" />
-                    {selfie?.url ? "Retake Selfie" : "Take Live Selfie"}
-                  </Button>
-                )} */}
-                <p className="text-[11px] text-muted-foreground">
-                  {selfie?.url ? "Photo recorded for attendance log." : "Live photo required for clocking in."}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Location & Geofence Distance Footer */}
           <Card className="border border-border/60 bg-card shadow-lg rounded-3xl p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPinIcon className="w-4 h-4 text-primary" />
-                <span>
-                  {coords.lat && coords.lng
-                    ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
-                    : "Fetching GPS location..."}
-                </span>
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MapPinIcon className="w-4 h-4 text-primary shrink-0" />
+                  <span>
+                    {coords.lat && coords.lng
+                      ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
+                      : isLocating
+                      ? "Fetching GPS location..."
+                      : locationError ? <span className="text-rose-500">{locationError}</span> : "Location unknown"}
+                  </span>
+                </div>
+                {(!coords.lat || locationError) && (
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    onClick={fetchLocation} 
+                    disabled={isLocating}
+                    className="h-6 p-0 text-[10px] justify-start text-primary w-fit -mt-1 ml-6"
+                  >
+                    {isLocating ? "Retrying..." : "Retry Location"}
+                  </Button>
+                )}
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
                 <ShieldCheckIcon className="w-4 h-4" /> Geofence Protected
@@ -510,12 +509,12 @@ const handleClockIn = async (capturedSelfie?: SelfieData) => {
       </div>
 
       {/* Selfie Camera Modal Handler */}
-      <SelfieCameraModal
+      {/* <SelfieCameraModal
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
         onCapture={(data) => setSelfie(data)}
         handleClockIn={handleClockIn}
-      />
+      /> */}
     </div>
   );
 }

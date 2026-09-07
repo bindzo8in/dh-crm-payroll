@@ -187,7 +187,6 @@ async function seedAttendance() {
           longitude: 77.209 + (Math.random() - 0.5) * 0.002,
           distanceFromOffice: item.distanceFromOffice,
           locationName: item.workMode === "OFFICE" ? "Headquarters Office" : "Remote / Home",
-          selfieUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300",
           notes: item.notes,
           lateMinutes: item.lateMinutes,
           workMinutes: item.workMinutes,

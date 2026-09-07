@@ -11,16 +11,16 @@ const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-in
 
 export const metadata: Metadata = {
   title: {
-    default: "Internal CRM",
-    template: "%s | Internal CRM"
+    default: process.env.NEXT_PUBLIC_APP_NAME || "Internal CRM",
+    template: `%s | ${process.env.NEXT_PUBLIC_APP_NAME || "Internal CRM"}`
   },
-  description: "Internal CRM Application",
+  description: `${process.env.NEXT_PUBLIC_APP_NAME || "Internal CRM"} Application`,
   robots: {
     index: false,
     follow: false,
   },
   appleWebApp: {
-    title: "DH CRM",
+    title: process.env.NEXT_PUBLIC_APP_NAME || "CRM",
   },
 };
 

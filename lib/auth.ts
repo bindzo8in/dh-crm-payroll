@@ -23,7 +23,7 @@ export const auth = betterAuth({
     },
     trustedOrigins: [
         env.NEXT_PUBLIC_SITE_URL,
-        "dhpulse://",
+        env.MOBILE_APP_SCHEME ? env.MOBILE_APP_SCHEME : "dhpulse://",
 
         // Development mode - Expo's exp:// scheme with local IP ranges
         ...(process.env.NODE_ENV === "development" ? [

@@ -58,9 +58,8 @@ model User {
   salarySlips        SalarySlip[]
 
   // Payroll Details
-  employeeId         Int                @default(autoincrement()) @unique
-  employeeNo         String?
-  designation        String?
+  employeeId    Int     @unique @default(autoincrement())
+  designation   String?
   bankName           String?
   bankAccountNo      String?
   panNo              String?
@@ -899,8 +898,6 @@ model AttendanceRecord {
   latitude             Float?
   longitude            Float?
   locationName         String?
-  selfieUrl            String?
-  selfiePublicId       String?
   notes                String?
   earlyLeave           Boolean              @default(false)
   lateMinutes          Int                  @default(0)
